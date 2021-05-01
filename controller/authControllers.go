@@ -2,9 +2,11 @@ package controller
 
 import (
 	"encoding/json"
-	"fmt"
 
+	"github.com/domjeff/golang-auth/database"
+	"github.com/domjeff/golang-auth/models"
 	"github.com/gofiber/fiber"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func Hello(c *fiber.Ctx) {
@@ -14,7 +16,8 @@ func Hello(c *fiber.Ctx) {
 type data struct {
 	Name     *string `json:"name" xml:"name" form:"name"`
 	Password *string `json:"password" xml:"password" form:"password"`
-	Token    *string `json:"token" xml:"token" form:"token"`
+	Email    *string `json:"email" xml:"email" form:"email"`
+	// Token    *string `json:"token" xml:"token" form:"token"`
 }
 
 func Register(c *fiber.Ctx) {
@@ -29,7 +32,7 @@ func Register(c *fiber.Ctx) {
 	inrec, _ := json.Marshal(&data)
 	json.Unmarshal(inrec, &inInterface)
 	for field, val := range inInterface {
-		fmt.Println(val)
+		// fmt.Println(val)
 		if val == nil {
 			err := field + " must be filled"
 			c.Status(404).Send(err)
@@ -37,6 +40,13 @@ func Register(c *fiber.Ctx) {
 		}
 	}
 
-	c.JSON(data)
-
+	password, _ := bcrypt.GenerateFromPassword([]byte(*data.Password), 14)
+	user := &models.User{
+		Name:     *data.Name,
+		Email:    *data.Email,
+		Password: password,
+	}
+	database.DB.Create(user)
+	// c.JSON(user)
+	c.JSON(user)
 }
