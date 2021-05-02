@@ -12,12 +12,14 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/domjeff/golang-auth/database"
 	"github.com/domjeff/golang-auth/models"
-	"github.com/gofiber/fiber"
+
+	// "github.com/gofiber/fiber"
+	"github.com/gofiber/fiber/v2"
 	"golang.org/x/crypto/bcrypt"
 )
 
-func Hello(c *fiber.Ctx) {
-	c.SendString("Hello Worldaaa")
+func Hello(c *fiber.Ctx) error {
+	return c.SendString("Hello Worldaaa")
 }
 
 type data struct {
@@ -27,12 +29,12 @@ type data struct {
 	// Token    *string `json:"token" xml:"token" form:"token"`
 }
 
-func Register(c *fiber.Ctx) {
+func Register(c *fiber.Ctx) error {
 	var data data
 
 	if err := c.BodyParser(&data); err != nil {
-		c.Status(404).Send(err)
-		return
+		// c.Status(404).Send(err)
+		return fiber.NewError(404, err.Error())
 	}
 
 	var inInterface map[string]interface{}
@@ -42,8 +44,7 @@ func Register(c *fiber.Ctx) {
 		// fmt.Println(val)
 		if val == nil {
 			err := field + " must be filled"
-			c.Status(404).Send(err)
-			return
+			return fiber.NewError(404, err)
 		}
 	}
 
@@ -55,44 +56,30 @@ func Register(c *fiber.Ctx) {
 	}
 	database.DB.Create(user)
 	// c.JSON(user)
-	c.JSON(user)
+	return c.JSON(user)
 }
 
-func Login(c *fiber.Ctx) {
+func Login(c *fiber.Ctx) error {
 	var data data
 
 	if err := c.BodyParser(&data); err != nil {
-		c.Status(404).Send(err)
-		return
+		return fiber.NewError(404, err.Error())
 	}
-
-	// parameterList := []string{"Name", "Password"}
 
 	var inInterface map[string]interface{}
 	inrec, _ := json.Marshal(&data)
 	json.Unmarshal(inrec, &inInterface)
-
-	// for field, val := range inInterface {
-	// 	for _, desiredKey := range parameterList {
-	// 		if val == nil && field == desiredKey {
-	// 			err := field + " must be filled"
-	// 			c.Status(404).Send(err)
-	// 			return
-	// 		}
-	// 	}
-	// }
 
 	var user models.User
 
 	database.DB.Where("name= ?", data.Name).First(&user)
 
 	if user.Id == 0 {
-		c.Status(fiber.StatusNotFound)
-		c.JSON(fiber.Map{
-			// "message": "incorrect username and/or password",
-			"message": "cannot find",
-		})
-		return
+		return c.
+			Status(fiber.StatusNotFound).
+			JSON(fiber.Map{
+				"message": "cannot find",
+			})
 	}
 
 	if err := bcrypt.CompareHashAndPassword(user.Password, []byte(*data.Password)); err != nil {
@@ -103,7 +90,7 @@ func Login(c *fiber.Ctx) {
 		)
 	}
 
-	c.JSON(user)
+	// c.JSON(user)
 
 	claims := jwt.StandardClaims{
 		ExpiresAt: time.Now().Add(time.Hour * 24).Unix(),
@@ -113,13 +100,13 @@ func Login(c *fiber.Ctx) {
 	secretKey := os.Getenv("secretkey")
 	ss, err := token.SignedString([]byte(secretKey))
 	if err != nil {
-		c.Status(fiber.StatusInternalServerError)
-		c.JSON(
-			fiber.Map{
-				"message": err.Error(),
-			},
-		)
-		return
+		return c.
+			Status(fiber.StatusInternalServerError).
+			JSON(
+				fiber.Map{
+					"message": err.Error(),
+				},
+			)
 	}
 	cookies := fiber.Cookie{
 		Name:     "jwt",
@@ -129,15 +116,15 @@ func Login(c *fiber.Ctx) {
 	}
 
 	c.Cookie(&cookies)
-	c.JSON(
+	return c.JSON(
 		fiber.Map{
 			"message": "success",
 		},
 	)
-	return
+
 }
 
-func Test(c *fiber.Ctx) {
+func Test(c *fiber.Ctx) error {
 	mySigningKey := []byte("AllYourBase")
 
 	// Create the Claims
@@ -150,7 +137,7 @@ func Test(c *fiber.Ctx) {
 	ss, err := token.SignedString(mySigningKey)
 	fmt.Printf("%v %v", ss, err)
 
-	c.JSON(fiber.Map{
+	return c.JSON(fiber.Map{
 		"message": "this is a message",
 	})
 }
