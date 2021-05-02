@@ -2,8 +2,12 @@ package controller
 
 import (
 	"encoding/json"
+	"fmt"
+	"os"
 	"strconv"
 	"time"
+
+	// "strconv"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/domjeff/golang-auth/database"
@@ -99,17 +103,15 @@ func Login(c *fiber.Ctx) {
 		)
 	}
 
-	// c.JSON(user)
-	claims := jwt.NewWithClaims(
-		jwt.SigningMethodES256,
-		jwt.StandardClaims{
-			Issuer:    strconv.Itoa(int(user.Id)),
-			ExpiresAt: time.Now().Add(time.Hour * 24).Unix(),
-		},
-	)
+	c.JSON(user)
 
-	// secretKey := os.Getenv("secretkey")
-	token, err := claims.SignedString([]byte("secretKey"))
+	claims := jwt.StandardClaims{
+		ExpiresAt: time.Now().Add(time.Hour * 24).Unix(),
+		Issuer:    strconv.Itoa(int(user.Id)),
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	secretKey := os.Getenv("secretkey")
+	ss, err := token.SignedString([]byte(secretKey))
 	if err != nil {
 		c.Status(fiber.StatusInternalServerError)
 		c.JSON(
@@ -121,7 +123,7 @@ func Login(c *fiber.Ctx) {
 	}
 	cookies := fiber.Cookie{
 		Name:     "jwt",
-		Value:    token,
+		Value:    ss,
 		Expires:  time.Now().Add(time.Hour * 24),
 		HTTPOnly: true,
 	}
@@ -133,4 +135,22 @@ func Login(c *fiber.Ctx) {
 		},
 	)
 	return
+}
+
+func Test(c *fiber.Ctx) {
+	mySigningKey := []byte("AllYourBase")
+
+	// Create the Claims
+	claims := &jwt.StandardClaims{
+		ExpiresAt: 15000,
+		Issuer:    "test",
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	ss, err := token.SignedString(mySigningKey)
+	fmt.Printf("%v %v", ss, err)
+
+	c.JSON(fiber.Map{
+		"message": "this is a message",
+	})
 }

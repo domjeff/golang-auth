@@ -4,7 +4,9 @@ import (
 	"github.com/domjeff/golang-auth/database"
 	"github.com/domjeff/golang-auth/env"
 	"github.com/domjeff/golang-auth/route"
+
 	"github.com/gofiber/fiber"
+	// "github.com/gofiber/fiber/v2"
 	// "github.com/gofiber/fiber/v2/middleware/cors"
 	// "github.com/gofiber/fiber/v2/middleware/cors"
 )
