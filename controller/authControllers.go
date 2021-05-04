@@ -9,6 +9,7 @@ import (
 	// "strconv"
 
 	"github.com/dgrijalva/jwt-go"
+	"github.com/domjeff/golang-auth/cache"
 	"github.com/domjeff/golang-auth/database"
 	"github.com/domjeff/golang-auth/models"
 
@@ -107,6 +108,26 @@ func Login(c *fiber.Ctx) error {
 				},
 			)
 	}
+
+	userCache := cache.SetupUserCache()
+	if err = userCache.CheckUserToken(user); err != nil {
+		return c.Status(fiber.StatusMethodNotAllowed).
+			JSON(
+				fiber.Map{
+					"message": err.Error(),
+				},
+			)
+	}
+
+	if err = userCache.SetUserToken(user, ss); err != nil {
+		return c.Status(fiber.StatusMethodNotAllowed).
+			JSON(
+				fiber.Map{
+					"message": err.Error(),
+				},
+			)
+	}
+
 	cookies := fiber.Cookie{
 		Name:     "jwt",
 		Value:    ss,
