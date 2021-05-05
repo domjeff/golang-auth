@@ -14,7 +14,7 @@ type UserCache interface {
 }
 
 func SetupUserCache() *RedisCache {
-	return NewRedisCache("localhost:6379", 0, time.Duration(time.Hour*24))
+	return NewRedisCache("localhost:6379", 0, time.Duration(10))
 }
 
 func (cache *RedisCache) CheckUserToken(user models.User) error {
@@ -24,6 +24,7 @@ func (cache *RedisCache) CheckUserToken(user models.User) error {
 		return err
 	}
 
+	fmt.Println(*tokens)
 	if len(*tokens) > 0 {
 		return errors.New("Number of session reached limit already")
 	}
@@ -48,16 +49,29 @@ func (cache *RedisCache) getUserTokens(user models.User) (*[]string, error) {
 	return tokens, nil
 }
 
-func (cache *RedisCache) UpdateUserTokens(user models.User, cookieToken string) error {
+func (cache *RedisCache) UpdateUserTokens(
+	user models.User,
+	cookieToken string,
+	generateFunction func(user models.User) (*string, error),
+) error {
 	tokens, err := cache.getUserTokens(user)
 	if err != nil {
 		return err
 	}
-	// updatedToken := []string{}
 	for _, token := range *tokens {
-		if token == cookieToken {
-			// updatedToken = append(updatedToken, cookieToken)
-
+		if token == fmt.Sprintf("\"%s\"", cookieToken) {
+			fmt.Println("Successs to here")
+			key := fmt.Sprintf("user%d.token", user.Id)
+			newToken, err := generateFunction(user)
+			if err != nil {
+				return err
+			}
+			fmt.Println(token)
+			fmt.Println(*newToken)
+			err = cache.LSet(key, 1, *newToken)
+			if err != nil {
+				return err
+			}
 			break
 		}
 	}

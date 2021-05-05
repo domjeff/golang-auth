@@ -106,7 +106,7 @@ func Login(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusMethodNotAllowed).
 			JSON(
 				fiber.Map{
-					"message": err.Error(),
+					"messagee": err.Error(),
 				},
 			)
 	}
@@ -155,6 +155,11 @@ func User(c *fiber.Ctx) error {
 	var user models.User
 	database.DB.Where("id = ?", claims.Issuer).First(&user)
 
+	err = UpdateJWTCache(user, cookies, c)
+	if err != nil {
+		return err
+	}
+
 	return c.JSON(user)
 }
 
@@ -188,4 +193,18 @@ func GenerateJwtToken(user models.User) (*string, error) {
 	var res string
 	res = ss
 	return &res, nil
+}
+
+func UpdateJWTCache(user models.User, cookies string, c *fiber.Ctx) error {
+	//we can refactor later
+	userCache := cache.SetupUserCache()
+	err := userCache.UpdateUserTokens(user, cookies, GenerateJwtToken)
+	if err != nil {
+		return c.Status(fiber.StatusMethodNotAllowed).JSON(
+			fiber.Map{
+				"message": err.Error(),
+			},
+		)
+	}
+	return nil
 }
