@@ -53,27 +53,28 @@ func (cache *RedisCache) UpdateUserTokens(
 	user models.User,
 	cookieToken string,
 	generateFunction func(user models.User) (*string, error),
-) error {
+) (*string, error) {
 	tokens, err := cache.getUserTokens(user)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	for _, token := range *tokens {
+	var newToken *string
+	for in, token := range *tokens {
 		if token == fmt.Sprintf("\"%s\"", cookieToken) {
 			fmt.Println("Successs to here")
-			key := fmt.Sprintf("user%d.token", user.Id)
-			newToken, err := generateFunction(user)
+			key := fmt.Sprintf("user%d.tokens", user.Id)
+			newToken, err = generateFunction(user)
 			if err != nil {
-				return err
+				return nil, err
 			}
 			fmt.Println(token)
 			fmt.Println(*newToken)
-			err = cache.LSet(key, 1, *newToken)
+			err = cache.LSet(key, in, *newToken)
 			if err != nil {
-				return err
+				return nil, err
 			}
 			break
 		}
 	}
-	return nil
+	return newToken, nil
 }

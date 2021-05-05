@@ -198,7 +198,7 @@ func GenerateJwtToken(user models.User) (*string, error) {
 func UpdateJWTCache(user models.User, cookies string, c *fiber.Ctx) error {
 	//we can refactor later
 	userCache := cache.SetupUserCache()
-	err := userCache.UpdateUserTokens(user, cookies, GenerateJwtToken)
+	token, err := userCache.UpdateUserTokens(user, cookies, GenerateJwtToken)
 	if err != nil {
 		return c.Status(fiber.StatusMethodNotAllowed).JSON(
 			fiber.Map{
@@ -206,5 +206,15 @@ func UpdateJWTCache(user models.User, cookies string, c *fiber.Ctx) error {
 			},
 		)
 	}
+
+	newCookies := fiber.Cookie{
+		Name:     "jwt",
+		Value:    *token,
+		Expires:  time.Now().Add(time.Hour * 24),
+		HTTPOnly: true,
+	}
+
+	c.Cookie(&newCookies)
+
 	return nil
 }

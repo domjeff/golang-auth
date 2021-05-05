@@ -3,6 +3,7 @@ package cache
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -61,10 +62,6 @@ func (cache *RedisCache) Get(key string) (*interface{}, error) {
 func (cache *RedisCache) RPush(key string, entity interface{}) error {
 	client := cache.GetClient()
 	defer client.Close()
-	// _, err := client.Do(context.Background(), "AFTER 0", "SET key", 10).Result()
-	// if err != nil {
-	// 	return err
-	// }
 
 	json, err := json.Marshal(entity)
 	if err != nil {
@@ -86,10 +83,12 @@ func (cache *RedisCache) LRange(key string) (*[]string, error) {
 	return &values, nil
 }
 
-func (cache *RedisCache) LSet(key string, changeNumber int, value interface{}) error {
+func (cache *RedisCache) LSet(key string, index int, value interface{}) error {
 	client := cache.GetClient()
 	defer client.Close()
-	_, err := client.LSet(context.Background(), key, int64(changeNumber), value).Result()
+	fmt.Println(int64(index))
+	res, err := client.LSet(context.Background(), key, int64(index), value).Result()
+	fmt.Println(res)
 	if err != nil {
 		return err
 	}
