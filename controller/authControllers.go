@@ -90,15 +90,7 @@ func Login(c *fiber.Ctx) error {
 		)
 	}
 
-	// c.JSON(user)
-
-	claims := jwt.StandardClaims{
-		ExpiresAt: time.Now().Add(time.Hour * 24).Unix(),
-		Issuer:    strconv.Itoa(int(user.Id)),
-	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	secretKey := os.Getenv("secretkey")
-	ss, err := token.SignedString([]byte(secretKey))
+	ss, err := GenerateJwtToken(user)
 	if err != nil {
 		return c.
 			Status(fiber.StatusInternalServerError).
@@ -114,12 +106,12 @@ func Login(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusMethodNotAllowed).
 			JSON(
 				fiber.Map{
-					"message": err.Error(),
+					"messagee": err.Error(),
 				},
 			)
 	}
 
-	if err = userCache.SetUserToken(user, ss); err != nil {
+	if err = userCache.SetUserToken(user, *ss); err != nil {
 		return c.Status(fiber.StatusMethodNotAllowed).
 			JSON(
 				fiber.Map{
@@ -130,7 +122,7 @@ func Login(c *fiber.Ctx) error {
 
 	cookies := fiber.Cookie{
 		Name:     "jwt",
-		Value:    ss,
+		Value:    *ss,
 		Expires:  time.Now().Add(time.Hour * 24),
 		HTTPOnly: true,
 	}
@@ -163,6 +155,11 @@ func User(c *fiber.Ctx) error {
 	var user models.User
 	database.DB.Where("id = ?", claims.Issuer).First(&user)
 
+	err = UpdateJWTCache(user, cookies, c)
+	if err != nil {
+		return err
+	}
+
 	return c.JSON(user)
 }
 
@@ -179,4 +176,45 @@ func Logout(c *fiber.Ctx) error {
 			"message": "log out success",
 		},
 	)
+}
+
+func GenerateJwtToken(user models.User) (*string, error) {
+	claims := jwt.StandardClaims{
+		ExpiresAt: time.Now().Add(time.Hour * 24).Unix(),
+		Issuer:    strconv.Itoa(int(user.Id)),
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	secretKey := os.Getenv("secretkey")
+	ss, err := token.SignedString([]byte(secretKey))
+	if err != nil {
+		return nil, err
+	}
+
+	var res string
+	res = ss
+	return &res, nil
+}
+
+func UpdateJWTCache(user models.User, cookies string, c *fiber.Ctx) error {
+	//we can refactor later
+	userCache := cache.SetupUserCache()
+	token, err := userCache.UpdateUserTokens(user, cookies, GenerateJwtToken)
+	if err != nil {
+		return c.Status(fiber.StatusMethodNotAllowed).JSON(
+			fiber.Map{
+				"message": err.Error(),
+			},
+		)
+	}
+
+	newCookies := fiber.Cookie{
+		Name:     "jwt",
+		Value:    *token,
+		Expires:  time.Now().Add(time.Hour * 24),
+		HTTPOnly: true,
+	}
+
+	c.Cookie(&newCookies)
+
+	return nil
 }
